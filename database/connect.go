@@ -21,7 +21,7 @@ func ConnectDb() {
 
 	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", config.Config("DB_HOST"), port, config.Config("DB_USER"), config.Config("DB_PASSWORD"), config.Config("DB_NAME"))
 
-	DB, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Info),
 	})
 	if err != nil {
@@ -29,6 +29,7 @@ func ConnectDb() {
 	}
 
 	fmt.Println("Connection Opened to Database")
-	DB.AutoMigrate(&models.User{}, &models.Product{}, &models.Account{}, &models.Order{})
+	db.AutoMigrate(&models.User{}, &models.Product{}, &models.Account{}, &models.Order{})
 	fmt.Println("Database Migrated")
+	DB = db
 }
