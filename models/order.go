@@ -25,10 +25,10 @@ func (t Type) Value() (driver.Value, error) {
 
 type Order struct {
 	gorm.Model
-	Invoice   string  `json:"invoice" gorm:"uniqueIndex;not null"`
+	Invoice   string  `json:"invoice" gorm:"unique;not null"`
 	AccountID uint    `json:"account_id" gorm:"not null"`
-	Merchant  string  `json:"merchant" `
-	Buyer     string  `json:"buyer" `
+	Merchant  *string  `json:"merchant" `
+	Buyer     *string  `json:"buyer" `
 	Amount    float64 `json:"amount" gorm:"type:numeric(10,2);not null"`
 	Type      Type    `json:"type" gorm:"not null; type:order_type"`
 

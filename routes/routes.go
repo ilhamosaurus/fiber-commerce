@@ -13,6 +13,11 @@ func SetupRoutes(app *fiber.App) {
 		return c.SendString("Hello, World!")
 	})
 
+	// product routes
+	product := api.Group("/product")
+	product.Get("/", handler.GetAllProducts)
+	product.Get("/:code", handler.GetProduct)
+
 	// auth routes
 	auth := api.Group("/auth")
 	auth.Post("/register", handler.Register)

@@ -31,5 +31,6 @@ func ConnectDb() {
 	fmt.Println("Connection Opened to Database")
 	db.AutoMigrate(&models.User{}, &models.Product{}, &models.Account{}, &models.Order{})
 	fmt.Println("Database Migrated")
+	// Load(db) //products seeding
 	DB = db
 }

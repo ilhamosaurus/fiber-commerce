@@ -2,7 +2,6 @@ package handler
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -91,19 +90,17 @@ func Login(c *fiber.Ctx) error {
 	}
 
 	if !CheckPasswordHash(input.Password, userModel.Password) {
-		return c.Status(404).JSON(fiber.Map{"error": "Invalid credetials"})
+		return c.Status(401).JSON(fiber.Map{"error": "Invalid credetials"})
 	}
 
 	token := jwt.New(jwt.SigningMethodHS256)
-	fmt.Println(token)
+
 	claims := token.Claims.(jwt.MapClaims)
 	claims["sub"] = userData.ID
 	claims["username"] = userData.Username
 	claims["exp"] = time.Now().Add(time.Hour * 2).Unix()
+
 	t, err := token.SignedString([]byte(config.Config("SECRET")))
-	fmt.Println(claims)
-	fmt.Println(err)
-	fmt.Println(t)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to login", "data": err})
 	}
