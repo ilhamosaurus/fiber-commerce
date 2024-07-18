@@ -2,6 +2,7 @@ package models
 
 import (
 	"database/sql/driver"
+	"fmt"
 
 	"gorm.io/gorm"
 )
@@ -15,7 +16,14 @@ const (
 )
 
 func (t *Type) Scan(value interface{}) error {
-	*t = Type(value.([]byte))
+	switch v := value.(type) {
+	case []byte:
+		*t = Type(v)
+	case string:
+		*t = Type(v)
+	default:
+		return fmt.Errorf("expected []byte or string, got %T", value)
+	}
 	return nil
 }
 
@@ -37,4 +45,9 @@ type Order struct {
 
 type TopupValidation struct {
 	Amount float64 `json:"amount" validate:"required,gt=0"`
+}
+
+type PaymentValidation struct {
+	Code string `json:"code" validate:"required"`
+	Qty  int    `json:"qty" validate:"required,gt=0"`
 }

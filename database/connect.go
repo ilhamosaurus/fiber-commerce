@@ -2,6 +2,7 @@ package database
 
 import (
 	"fmt"
+	"log"
 	"strconv"
 
 	"github.com/ilhamosaurus/fiber-commerce/config"
@@ -25,7 +26,7 @@ func ConnectDb() {
 		Logger: logger.Default.LogMode(logger.Info),
 	})
 	if err != nil {
-		panic("failed to connect database")
+		log.Fatal("failed to connect database")
 	}
 
 	fmt.Println("Connection Opened to Database")

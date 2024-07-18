@@ -28,4 +28,6 @@ func SetupRoutes(app *fiber.App) {
 	transaction.Use(middleware.Protected())
 	transaction.Get("/balance", handler.GetBalance)
 	transaction.Post("/topup", handler.Topup)
+	transaction.Get("/history", handler.GetOrders)
+	transaction.Post("/payment", handler.Payment)
 }

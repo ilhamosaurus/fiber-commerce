@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -70,4 +71,121 @@ func Topup(c *fiber.Ctx) error {
 		"message": "success topup",
 		"data":    response,
 	})
+}
+
+func GetOrders(c *fiber.Ctx) error {
+	type OrderResponse struct {
+		Invoice   string      `json:"invoice"`
+		Merchant  *string     `json:"merchant"`
+		Buyer     *string     `json:"buyer"`
+		Amount    float64     `json:"amount"`
+		Type      models.Type `json:"type"`
+		CreatedAt time.Time   `json:"created_at"`
+	}
+
+	user := c.Locals("user").(*jwt.Token)
+	claims := user.Claims.(jwt.MapClaims)
+	username := claims["username"].(string)
+	db := database.DB
+
+	account, err := GetAccountByUsername(username)
+	if err != nil || account == nil {
+		return c.Status(404).JSON(fiber.Map{"error": "Failed to get account", "data": err})
+	}
+
+	orders := []models.Order{}
+	if err := db.Where("account_id = ?", account.ID).Order("created_at DESC").Find(&orders).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return c.Status(404).JSON(fiber.Map{"error": "No transactions found", "data": nil})
+		}
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to get transactions", "data": err})
+	}
+
+	orderResponse := make([]OrderResponse, len(orders))
+	for i, order := range orders {
+		orderResponse[i] = OrderResponse{
+			Invoice:   order.Invoice,
+			Merchant:  order.Merchant,
+			Buyer:     order.Buyer,
+			Amount:    order.Amount,
+			Type:      order.Type,
+			CreatedAt: order.CreatedAt,
+		}
+	}
+
+	return c.Status(200).JSON(fiber.Map{"data": orderResponse})
+}
+
+func Payment(c *fiber.Ctx) error {
+	type PaymentResponse struct {
+		Invoice   string      `json:"invoice"`
+		Merchant  *string     `json:"merchant"`
+		Buyer     *string     `json:"buyer"`
+		Amount    float64     `json:"amount"`
+		Type      models.Type `json:"type"`
+		CreatedAt time.Time   `json:"created_at"`
+	}
+	user := c.Locals("user").(*jwt.Token)
+	claims := user.Claims.(jwt.MapClaims)
+	username := claims["username"].(string)
+	db := database.DB
+
+	body := &models.PaymentValidation{}
+	if err := c.BodyParser(body); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid Fields"})
+	}
+
+	validate := validator.New()
+	if err := validate.Struct(body); err != nil {
+		errMsgs := make([]string, 0)
+		for _, e := range err.(validator.ValidationErrors) {
+			errMsgs = append(errMsgs, fmt.Sprintf("%s: %s %s", e.Field(), e.Tag(), e.Param()))
+		}
+		return c.Status(400).JSON(fiber.Map{"error": errMsgs})
+	}
+
+	transactionUtil, err := GetInvNumber(username)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to topup", "data": err})
+	}
+	if transactionUtil == nil {
+		return c.Status(404).JSON(fiber.Map{"error": "Account not found"})
+	}
+
+	product, err := GetProductByCode(body.Code)
+	if err != nil || product == nil {
+		return c.Status(404).JSON(fiber.Map{"error": "Product not found", "data": err})
+	}
+
+	totalAmount := product.Price * float64(body.Qty)
+	if totalAmount > transactionUtil.Account.Balance {
+		return c.Status(400).JSON(fiber.Map{"error": "Insufficient balance"})
+	}
+	transaction := models.Order{
+		AccountID: transactionUtil.Account.ID,
+		Invoice:   transactionUtil.Invoice,
+		Amount:    totalAmount,
+		Type:      models.Type("PAYMENT"),
+		Merchant:  &product.Code,
+		Buyer:     &username,
+	}
+
+	tx := db.Session(&gorm.Session{SkipDefaultTransaction: true})
+	if err := tx.Model(&models.Account{}).Where("owner = ?", username).Update("balance", gorm.Expr("balance - ?", totalAmount)).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to topup", "data": err})
+	}
+	if err := tx.Create(&transaction).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to topup", "data": err})
+	}
+
+	paymentResponse := PaymentResponse{
+		Invoice:   transaction.Invoice,
+		Merchant:  transaction.Merchant,
+		Buyer:     transaction.Buyer,
+		Amount:    transaction.Amount,
+		Type:      transaction.Type,
+		CreatedAt: transaction.CreatedAt,
+	}
+
+	return c.Status(201).JSON(fiber.Map{"data": paymentResponse})
 }
