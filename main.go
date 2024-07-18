@@ -9,7 +9,13 @@ import (
 )
 
 func main() {
-	app := fiber.New()
+	app := fiber.New(fiber.Config{
+		ErrorHandler: func(c *fiber.Ctx, err error) error {
+			return c.Status(400).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		},
+	})
 
 	app.Use(cors.New())
 	app.Use(logger.New())

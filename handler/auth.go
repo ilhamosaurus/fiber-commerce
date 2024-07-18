@@ -2,8 +2,10 @@ package handler
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/ilhamosaurus/fiber-commerce/config"
@@ -31,10 +33,20 @@ func hashedPassword(password string) (string, error) {
 }
 
 func Register(c *fiber.Ctx) error {
+	validate := validator.New()
 	db := database.DB
-	user := new(models.User)
+
+	user := &models.UserValidation{}
 	if err := c.BodyParser(user); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid fields"})
+	}
+
+	if err := validate.Struct(user); err != nil {
+		errMsgs := make([]string, 0)
+		for _, e := range err.(validator.ValidationErrors) {
+			errMsgs = append(errMsgs, fmt.Sprintf("%s: %s %s", e.Field(), e.Tag(), e.Param()))
+		}
+		return c.Status(400).JSON(fiber.Map{"error": errMsgs})
 	}
 
 	hash, err := hashedPassword(user.Password)
@@ -59,20 +71,25 @@ func CheckPasswordHash(password, hash string) bool {
 }
 
 func Login(c *fiber.Ctx) error {
-	type LoginInput struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
-	}
+	validate := validator.New()
 	type UserData struct {
 		ID       uint   `json:"id"`
 		Username string `json:"username"`
 	}
 
-	input := new(LoginInput)
+	input := &models.UserValidation{}
 	var userData UserData
 
 	if err := c.BodyParser(input); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid fields"})
+	}
+
+	if err := validate.Struct(input); err != nil {
+		errMsgs := make([]string, 0)
+		for _, e := range err.(validator.ValidationErrors) {
+			errMsgs = append(errMsgs, fmt.Sprintf("%s: %s %s", e.Field(), e.Tag(), e.Param()))
+		}
+		return c.Status(400).JSON(fiber.Map{"error": errMsgs})
 	}
 
 	userModel, err := new(models.User), *new(error)

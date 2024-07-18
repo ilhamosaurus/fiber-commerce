@@ -23,10 +23,9 @@ func SetupRoutes(app *fiber.App) {
 	auth.Post("/register", handler.Register)
 	auth.Post("/login", handler.Login)
 
-	// protected routes
-	hello := api.Group("/hello")
-	hello.Use(middleware.Protected())
-	hello.Get("/", func(c *fiber.Ctx) error {
-		return c.SendString("Hello, from protected route!")
-	})
+	// transaction routes
+	transaction := api.Group("/transaction")
+	transaction.Use(middleware.Protected())
+	transaction.Get("/balance", handler.GetBalance)
+	transaction.Post("/topup", handler.Topup)
 }
