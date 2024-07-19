@@ -96,6 +96,9 @@ func Topup(c *fiber.Ctx) error {
 // @Failure 500 {object} string "Failed to get transactions"
 // @Router /api/transaction/history [get]
 func GetOrders(c *fiber.Ctx) error {
+	page := c.QueryInt("page")
+	pageSize := c.QueryInt("page_size")
+
 	type OrderResponse struct {
 		Invoice   string      `json:"invoice"`
 		Merchant  *string     `json:"merchant"`
@@ -116,6 +119,36 @@ func GetOrders(c *fiber.Ctx) error {
 	}
 
 	orders := []models.Order{}
+	if page != 0 && pageSize != 0 {
+		offset := (page - 1) * pageSize
+		limit := pageSize
+
+		if err := db.Limit(limit).Offset(offset).Where("account_id = ?", account.ID).Order("created_at DESC").Find(&orders).Error; err != nil {
+
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return c.Status(404).JSON(fiber.Map{"error": "No transactions found", "data": nil})
+			}
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to get transactions", "data": err})
+		}
+
+		if len(orders) == 0 {
+			return c.Status(404).JSON(fiber.Map{"error": "No transactions found", "data": nil})
+		}
+
+		paginatedResponse := make([]OrderResponse, len(orders))
+		for i, order := range orders {
+			paginatedResponse[i] = OrderResponse{
+				Invoice:   order.Invoice,
+				Merchant:  order.Merchant,
+				Buyer:     order.Buyer,
+				Amount:    order.Amount,
+				Type:      order.Type,
+				CreatedAt: order.CreatedAt,
+			}
+		}
+
+		return c.Status(200).JSON(fiber.Map{"data": paginatedResponse})
+	}
 	if err := db.Where("account_id = ?", account.ID).Order("created_at DESC").Find(&orders).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return c.Status(404).JSON(fiber.Map{"error": "No transactions found", "data": nil})
