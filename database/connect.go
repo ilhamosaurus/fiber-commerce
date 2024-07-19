@@ -29,9 +29,13 @@ func ConnectDb() {
 		log.Fatal("failed to connect database")
 	}
 
+	// init enum for role and order
+	// db.Exec("CREATE TYPE role AS ENUM ('CLIENT', 'MERCHANT')")
+	// db.Exec("CREATE TYPE order_type AS ENUM ('TOPUP', 'PAYMENT', 'REVENUE')")
+
 	fmt.Println("Connection Opened to Database")
 	db.AutoMigrate(&models.User{}, &models.Product{}, &models.Account{}, &models.Order{})
 	fmt.Println("Database Migrated")
-	// Load(db) //products seeding
+	// Load(db) // products seeding
 	DB = db
 }

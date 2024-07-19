@@ -72,6 +72,16 @@ func GetInvNumber(username string) (*TransactionUtil, error) {
 	return &transactionUtil, nil
 }
 
+// @Summary Get Account Balance
+// @Tags Transaction
+// @Description Get Account Balance
+// @Security Bearer
+// @Produce json
+// @Success 200 {object} handler.GetBalance.BalanceResponse
+// @Failure 401 {object} string "Unauthorized"
+// @Failure 404 {object} string "Account not found"
+// @Failure 500 {object} string "Failed to get balance"
+// @Router /api/transaction/balance [get]
 func GetBalance(c *fiber.Ctx) error {
 	user := c.Locals("user").(*jwt.Token)
 	claims := user.Claims.(jwt.MapClaims)
@@ -86,5 +96,10 @@ func GetBalance(c *fiber.Ctx) error {
 		return c.Status(404).JSON(fiber.Map{"error": "Account not found", "data": nil})
 	}
 
-	return c.Status(200).JSON(fiber.Map{"owner": account.Owner, "balance": account.Balance})
+	type BalanceResponse struct {
+		Owner   string  `json:"owner"`
+		Balance float64 `json:"balance"`
+	}
+
+	return c.Status(200).JSON(BalanceResponse{account.Owner, account.Balance})
 }

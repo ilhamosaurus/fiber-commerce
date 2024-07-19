@@ -13,6 +13,18 @@ import (
 	"gorm.io/gorm"
 )
 
+// @Summary Topup user's balance
+// @Tags Transaction
+// @Description Topup user's balance
+// @Security Bearer
+// @Accept json
+// @Produce json
+// @Param body body models.TopupValidation true "Topup"
+// @Success 201 {object} handler.Topup.TopupResponse "OK"
+// @Failure 400 {object} string "Invalid fields"
+// @Failure 401 {object} string "Unauthorized"
+// @Failure 500 {object} string "Failed to topup"
+// @Router /api/transaction/topup [post]
 func Topup(c *fiber.Ctx) error {
 	type TopupResponse struct {
 		Invoice   string      `json:"invoice"`
@@ -73,6 +85,16 @@ func Topup(c *fiber.Ctx) error {
 	})
 }
 
+// @Summary Get user's transactions
+// @Tags Transaction
+// @Description Get user's transactions history
+// @Security Bearer
+// @Produce json
+// @Success 200 {object} handler.GetOrders.OrderResponse
+// @Failure 401 {object} string "Unauthorized"
+// @Failure 404 {object} string "No transactions found"
+// @Failure 500 {object} string "Failed to get transactions"
+// @Router /api/transaction/history [get]
 func GetOrders(c *fiber.Ctx) error {
 	type OrderResponse struct {
 		Invoice   string      `json:"invoice"`
@@ -116,6 +138,19 @@ func GetOrders(c *fiber.Ctx) error {
 	return c.Status(200).JSON(fiber.Map{"data": orderResponse})
 }
 
+// @Summary Payment
+// @Tags Transaction
+// @Description User's purchase products and pay the merchant
+// @Security Bearer
+// @Accept json
+// @Produce json
+// @Param payment body models.PaymentValidation true "Payment"
+// @Success 201 {object} handler.Payment.PaymentResponse
+// @Failure 400 {object} string "Invalid Fields"
+// @Failure 401 {object} string "Unauthorized"
+// @Failure 404 {object} string "Product not found"
+// @Failure 500 {object} string "Failed to payment"
+// @Router /api/transaction/payment [post]
 func Payment(c *fiber.Ctx) error {
 	type PaymentResponse struct {
 		Invoice   string      `json:"invoice"`
@@ -146,7 +181,7 @@ func Payment(c *fiber.Ctx) error {
 
 	transactionUtil, err := GetInvNumber(username)
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to topup", "data": err})
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to purchase", "data": err})
 	}
 	if transactionUtil == nil {
 		return c.Status(404).JSON(fiber.Map{"error": "Account not found"})
@@ -156,26 +191,50 @@ func Payment(c *fiber.Ctx) error {
 	if err != nil || product == nil {
 		return c.Status(404).JSON(fiber.Map{"error": "Product not found", "data": err})
 	}
-
+	// balance check
 	totalAmount := product.Price * float64(body.Qty)
 	if totalAmount > transactionUtil.Account.Balance {
 		return c.Status(400).JSON(fiber.Map{"error": "Insufficient balance"})
 	}
+
+	merchatUtil, err := GetInvNumber(product.Merchant)
+	if err != nil || merchatUtil == nil {
+		return c.Status(404).JSON(fiber.Map{"error": "Merchant not found", "data": err})
+	}
+
+	description := fmt.Sprintf("Payment for product %s(%s)", product.Name, product.Code)
+	merchantTransaction := models.Order{
+		AccountID:   merchatUtil.Account.ID,
+		Invoice:     merchatUtil.Invoice,
+		Amount:      product.Price,
+		Type:        models.Type("REVENUE"),
+		Merchant:    &product.Merchant,
+		Buyer:       &username,
+		Description: &description,
+	}
+
 	transaction := models.Order{
-		AccountID: transactionUtil.Account.ID,
-		Invoice:   transactionUtil.Invoice,
-		Amount:    totalAmount,
-		Type:      models.Type("PAYMENT"),
-		Merchant:  &product.Code,
-		Buyer:     &username,
+		AccountID:   transactionUtil.Account.ID,
+		Invoice:     transactionUtil.Invoice,
+		Amount:      totalAmount,
+		Type:        models.Type("PAYMENT"),
+		Merchant:    &product.Merchant,
+		Buyer:       &username,
+		Description: &description,
 	}
 
 	tx := db.Session(&gorm.Session{SkipDefaultTransaction: true})
 	if err := tx.Model(&models.Account{}).Where("owner = ?", username).Update("balance", gorm.Expr("balance - ?", totalAmount)).Error; err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to topup", "data": err})
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to purchase", "data": err})
+	}
+	if err := tx.Model(&models.Account{}).Where("owner = ?", product.Merchant).Update("balance", gorm.Expr("balance + ?", totalAmount)).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to purchase", "data": err})
 	}
 	if err := tx.Create(&transaction).Error; err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to topup", "data": err})
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to purchase", "data": err})
+	}
+	if err := tx.Create(&merchantTransaction).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to purchase", "data": err})
 	}
 
 	paymentResponse := PaymentResponse{

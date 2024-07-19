@@ -1,0 +1,535 @@
+definitions:
+  handler.GetBalance.BalanceResponse:
+    properties:
+      balance:
+        type: number
+      owner:
+        type: string
+    type: object
+  handler.GetOrders.OrderResponse:
+    properties:
+      amount:
+        type: number
+      buyer:
+        type: string
+      created_at:
+        type: string
+      invoice:
+        type: string
+      merchant:
+        type: string
+      type:
+        $ref: '#/definitions/models.Type'
+    type: object
+  handler.Login.LoginResponse:
+    properties:
+      token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
+        type: string
+    type: object
+  handler.Payment.PaymentResponse:
+    properties:
+      amount:
+        type: number
+      buyer:
+        type: string
+      created_at:
+        type: string
+      invoice:
+        type: string
+      merchant:
+        type: string
+      type:
+        $ref: '#/definitions/models.Type'
+    type: object
+  handler.ProductData:
+    properties:
+      code:
+        type: string
+      merchant:
+        type: string
+      name:
+        type: string
+      price:
+        type: number
+      weight:
+        type: number
+    type: object
+  handler.Register.RegisterResponse:
+    properties:
+      message:
+        example: User Registered successfully, please login
+        type: string
+    type: object
+  handler.Topup.TopupResponse:
+    properties:
+      amount:
+        type: number
+      created_at:
+        type: string
+      invoice:
+        type: string
+      type:
+        $ref: '#/definitions/models.Type'
+    type: object
+  models.CreateProductValidation:
+    properties:
+      code:
+        minLength: 3
+        type: string
+      name:
+        minLength: 3
+        type: string
+      price:
+        type: number
+      weight:
+        type: number
+    required:
+    - code
+    - name
+    - price
+    type: object
+  models.LoginValidation:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  models.PaymentValidation:
+    properties:
+      code:
+        type: string
+      qty:
+        type: integer
+    required:
+    - code
+    - qty
+    type: object
+  models.RegisterValidation:
+    properties:
+      password:
+        minLength: 6
+        type: string
+      role:
+        $ref: '#/definitions/models.Role'
+      username:
+        minLength: 6
+        type: string
+    required:
+    - password
+    - role
+    - username
+    type: object
+  models.Role:
+    enum:
+    - CLIENT
+    - MERCHANT
+    type: string
+    x-enum-varnames:
+    - Client
+    - Merchant
+  models.TopupValidation:
+    properties:
+      amount:
+        type: number
+    required:
+    - amount
+    type: object
+  models.Type:
+    enum:
+    - TOPUP
+    - PAYMENT
+    - REVENUE
+    type: string
+    x-enum-varnames:
+    - Topup
+    - Payment
+    - Revenue
+  models.UpdateProductValidation:
+    properties:
+      name:
+        minLength: 3
+        type: string
+      price:
+        type: number
+      weight:
+        type: number
+    required:
+    - name
+    - price
+    type: object
+host: localhost:3000
+info:
+  contact: {}
+  description: |-
+    API Documentation for Fiber-Mini Commerce which is an e-commerce application.
+    Where user either can be a client or merchant. Client can buy product and merchant can sell product.
+    PS: Authorization cannot be used in this project because OpenAPi 2.0 does not support Bearer Token.
+  title: Fiber-Mini Commerce
+  version: "1.0"
+paths:
+  /api/auth/login:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: User
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/models.LoginValidation'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User Logged In
+          schema:
+            $ref: '#/definitions/handler.Login.LoginResponse'
+        "400":
+          description: Invalid fields
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Login User
+      tags:
+      - Auth
+  /api/auth/register:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: User
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/models.RegisterValidation'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: User Created
+          schema:
+            $ref: '#/definitions/handler.Register.RegisterResponse'
+        "400":
+          description: Invalid fields
+          schema:
+            type: string
+        "409":
+          description: User already exists
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Register new User
+      tags:
+      - Auth
+  /api/products:
+    get:
+      description: Get all products
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/handler.ProductData'
+            type: array
+        "404":
+          description: No products found
+          schema:
+            type: string
+        "500":
+          description: Failed to get products
+          schema:
+            type: string
+      summary: Get all products
+      tags:
+      - Products
+    post:
+      consumes:
+      - application/json
+      description: Create product
+      parameters:
+      - description: Product data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateProductValidation'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Product created successfully
+          schema:
+            $ref: '#/definitions/handler.ProductData'
+        "400":
+          description: Invalid fields
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "500":
+          description: Failed to create product
+          schema:
+            type: string
+      security:
+      - Bearer: []
+      summary: Create product
+      tags:
+      - Products
+  /api/products/{code}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete product
+      parameters:
+      - description: Product code
+        in: path
+        name: code
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Product deleted successfully
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "404":
+          description: Invalid product code
+          schema:
+            type: string
+        "500":
+          description: Failed to delete product
+          schema:
+            type: string
+      security:
+      - Bearer: []
+      summary: Delete product
+      tags:
+      - Products
+    get:
+      description: Get product by code
+      parameters:
+      - description: Product code
+        in: path
+        name: code
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.ProductData'
+        "404":
+          description: Invalid product code
+          schema:
+            type: string
+        "500":
+          description: Failed to get product
+          schema:
+            type: string
+      summary: Get product by code
+      tags:
+      - Products
+    put:
+      consumes:
+      - application/json
+      description: Update product
+      parameters:
+      - description: Product code
+        in: path
+        name: code
+        required: true
+        type: string
+      - description: Product data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateProductValidation'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Product updated successfully
+          schema:
+            $ref: '#/definitions/handler.ProductData'
+        "400":
+          description: Invalid fields
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "404":
+          description: Invalid product code
+          schema:
+            type: string
+        "500":
+          description: Failed to update product
+          schema:
+            type: string
+      security:
+      - Bearer: []
+      summary: Update product
+      tags:
+      - Products
+  /api/transaction/balance:
+    get:
+      description: Get Account Balance
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.GetBalance.BalanceResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "404":
+          description: Account not found
+          schema:
+            type: string
+        "500":
+          description: Failed to get balance
+          schema:
+            type: string
+      security:
+      - Bearer: []
+      summary: Get Account Balance
+      tags:
+      - Transaction
+  /api/transaction/history:
+    get:
+      description: Get user's transactions history
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.GetOrders.OrderResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "404":
+          description: No transactions found
+          schema:
+            type: string
+        "500":
+          description: Failed to get transactions
+          schema:
+            type: string
+      security:
+      - Bearer: []
+      summary: Get user's transactions
+      tags:
+      - Transaction
+  /api/transaction/payment:
+    post:
+      consumes:
+      - application/json
+      description: User's purchase products and pay the merchant
+      parameters:
+      - description: Payment
+        in: body
+        name: payment
+        required: true
+        schema:
+          $ref: '#/definitions/models.PaymentValidation'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handler.Payment.PaymentResponse'
+        "400":
+          description: Invalid Fields
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "404":
+          description: Product not found
+          schema:
+            type: string
+        "500":
+          description: Failed to payment
+          schema:
+            type: string
+      security:
+      - Bearer: []
+      summary: Payment
+      tags:
+      - Transaction
+  /api/transaction/topup:
+    post:
+      consumes:
+      - application/json
+      description: Topup user's balance
+      parameters:
+      - description: Topup
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.TopupValidation'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.Topup.TopupResponse'
+        "400":
+          description: Invalid fields
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "500":
+          description: Failed to topup
+          schema:
+            type: string
+      security:
+      - Bearer: []
+      summary: Topup user's balance
+      tags:
+      - Transaction
+securityDefinitions:
+  Bearer:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
