@@ -10,6 +10,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/ilhamosaurus/fiber-commerce/database"
 	"github.com/ilhamosaurus/fiber-commerce/models"
+	"github.com/ilhamosaurus/fiber-commerce/util"
 	"gorm.io/gorm"
 )
 
@@ -108,12 +109,10 @@ func GetOrders(c *fiber.Ctx) error {
 		CreatedAt time.Time   `json:"created_at"`
 	}
 
-	user := c.Locals("user").(*jwt.Token)
-	claims := user.Claims.(jwt.MapClaims)
-	username := claims["username"].(string)
+	user := util.CurrentUser(c)
 	db := database.DB
 
-	account, err := GetAccountByUsername(username)
+	account, err := GetAccountByUsername(user.Username)
 	if err != nil || account == nil {
 		return c.Status(404).JSON(fiber.Map{"error": "Failed to get account", "data": err})
 	}

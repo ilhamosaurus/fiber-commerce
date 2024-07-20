@@ -39,7 +39,7 @@ func main() {
 
 	routes.SetupRoutes(app)
 
-	err := app.Listen(":3000")
+	err := app.Listen(":6012")
 	if err != nil {
 		log.Fatal(err)
 	}

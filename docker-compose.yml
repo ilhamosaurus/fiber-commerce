@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  fiber-app:
+    build: .
+    container_name: fiber-app
+    ports:
+      - '6012:6012'
+    depends_on:
+      - db
+    environment:
+      - DB_HOST=db
+      - DB_USER=user
+      - DB_PASSWORD=qwerty
+      - DB_NAME=fiber-commerce
+      - DB_PORT=5432
+
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: qwerty
+      POSTGRES_DB: fiber-commerce
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
